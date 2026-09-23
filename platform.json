@@ -1,0 +1,61 @@
+{
+  "name": "sifli",
+  "title": "SiFli SF32LBxx",
+  "description": "SiFli SF32LBxx series of ultra-low-power, high-performance ARM Cortex-M microcontrollers. This is a community PlatformIO platform that wraps the official SiFli SDK (RT-Thread based, built with SCons).",
+  "homepage": "https://docs.sifli.com/",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dev-platform",
+    "ARM",
+    "Cortex-M",
+    "SiFli",
+    "SF32LB52x",
+    "RT-Thread"
+  ],
+  "engines": {
+    "platformio": "^6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://docs.sifli.com/"
+  },
+  "version": "1.0.0",
+  "frameworks": {
+    "sifli-sdk": {
+      "package": "framework-sifli-sdk",
+      "script": "builder/frameworks/sifli.py",
+      "title": "SiFli SDK",
+      "description": "The official SiFli SDK build system (RT-Thread + SCons). The application directory must be a valid SiFli application (containing SConstruct, rtconfig.py, SConscript and src/). By default the SDK is auto-installed by PlatformIO into the `framework-sifli-sdk` package; you can override it with `sifli_sdk_dir` (platformio.ini) or the SIFLI_SDK environment variable.",
+      "homepage": "https://docs.sifli.com/"
+    }
+  },
+  "packages": {
+    "toolchain-gccarmnoneeabi": {
+      "type": "toolchain",
+      "owner": "platformio",
+      "version": ">=1.10000.0",
+      "optionalVersions": [
+        "~1.120301.0",
+        "~1.90201.0",
+        "~1.80201.0",
+        "~1.60301.0"
+      ]
+    },
+    "tool-openocd": {
+      "type": "debugger",
+      "optional": true,
+      "owner": "platformio",
+      "version": "~3.1200.0"
+    },
+    "tool-jlink": {
+      "type": "uploader",
+      "optional": true,
+      "owner": "platformio",
+      "version": "^1.63208.0"
+    },
+    "framework-sifli-sdk": {
+      "type": "framework",
+      "version": "git+https://github.com/hysonglet/framework-sifli.git"
+    }
+  }
+}
