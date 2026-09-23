@@ -69,29 +69,69 @@ Then build:
 pio run                 # compile + size check
 pio run -t size         # print memory usage
 pio run -t sifli-clean  # run `scons -c` (remove SDK build artifacts)
-pio run -t upload       # flash via uart_download.sh (needs a serial port)
+pio run -t upload       # flash over the serial port (see "Upload / download")
+pio run -t download     # alias of upload
 ```
 
 > The default `pio run -t clean` only removes PlatformIO's `.pio/` folder;
 > use `pio run -t sifli-clean` to clean the SDK `build_*` directory.
 
-### Upload
+### Upload / download
 
-`upload` runs the SDK-generated `uart_download.sh` from the build directory,
-passing the detected (or configured) serial port:
+Every build regenerates the SDK's UART download script and its parameter file in
+`build_<board>_hcpu/`:
 
-```ini
-upload_port = /dev/cu.usbserial-XXXX   ; macOS/Linux
-; upload_port = COM3                   ; Windows
+* `uart_download.sh` / `uart_download.bat` (`GenDownloadScript` in the SDK's
+  `tools/build/building.py`, templates in `tools/build/resource.py`)
+* `sftool_param.json` — the same write list in machine-readable form
+
+The platform reuses those artifacts, so the chip (`-c`, derived from the board's
+`JLINK_DEVICE`), the memory type (`-m`) and the addresses always match the build:
+
+```bash
+pio run -t upload     # build if needed, then flash over the serial port
+pio run -t download   # same action, SDK wording
 ```
 
-## Adding a board
+The serial port is resolved in this order:
 
-Available board names live in the SDK under `customer/boards/` (and
-`bf0_ap/boards/`). To add a new board, copy `boards/sf32lb52-lcd_n16r8.json`,
-set `build.board` to the board directory name (the `_hcpu` core suffix is
-added automatically), and adjust `mcu` / `flash_size` / `ram_size` /
-`maximum_size` as needed.
+1. `upload_port` from `platformio.ini` — a POSIX device path is verified first, so
+   a stale value is reported instead of failing inside `sftool`:
+
+   ```ini
+   upload_port = /dev/cu.usbserial-XXXX   ; macOS/Linux
+   ; upload_port = COM3                   ; Windows
+   ```
+
+   (`upload_port = a, b` uses the first entry.)
+2. otherwise the USB serial adapter reported by the OS, if it is unambiguous;
+3. otherwise the upload aborts and prints the list of detected ports.
+
+If `uart_download.sh` is missing (for example the build directory was cleaned
+without rebuilding), the platform falls back to calling `sftool -f <config>`
+directly, using a copy of `sftool_param.json` with the port injected.
+
+## Boards
+
+All board targets the SDK can build for are already provided:
+
+```bash
+python3 tools/gen_boards.py            # regenerate ../boards from the SDK
+python3 tools/gen_boards.py --dry-run  # show what would be written
+```
+
+The generator walks `customer/boards/`, keeps every directory that has an
+`hcpu`/`lcpu` sub-directory (i.e. what `scons --board=<name>_hcpu` can resolve)
+and derives the fields from the SDK: `build.board` from the directory name,
+`debug.jlink_device` from `<core>/rtconfig.py`, `upload.maximum_size` from
+`ptab.json`, and `flash_size` from the board name / `doc/` module name /
+`board.conf` (`FLASH_SIZE_OVERRIDES` fills the gaps). Directories that are not
+selectable targets (`*_base` BSP bases, `common/`, `include/`, `dummy/`, `pc/`
+and the flat legacy BSP dirs) are skipped.
+
+To add a board by hand, copy one of the JSON files in `boards/` and set
+`build.board` to the SDK board directory name (the `_hcpu` default core suffix is
+appended automatically).
 
 ## Notes / limitations
 
