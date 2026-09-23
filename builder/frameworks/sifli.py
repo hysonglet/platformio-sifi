@@ -84,40 +84,50 @@ def _resolve_board(env):
     return name
 
 
-def _find_sdk_venv_bin():
-    """Locate the SiFli SDK Python virtual environment `bin` directory.
+def _sdk_shell(env, scons_cmd):
+    """Return a bash command that activates the SDK environment and runs *scons_cmd*.
 
-    The SDK's `export.sh` selects a Python interpreter based on what is first on
-    PATH. PlatformIO runs SCons under its own bundled Python, which would make
-    `export.sh` look for a non-existent virtualenv. Prepending the SDK venv `bin`
-    to PATH forces `export.sh` to use the correct interpreter (and its `scons`).
+    The SiFli SDK needs a one-time Python virtualenv setup
+    (`tools/sifli_sdk_tools.py install-python-env`). When the SDK is auto-installed
+    by PlatformIO from a git package this step has never run, so we create the venv
+    here. The check+setup use the *same* `python3` that `export.sh` will use, so the
+    resulting venv version stays in sync. The setup is guarded by an existence check
+    because `install-python-env` would otherwise re-run `pip install --upgrade` on
+    every build.
     """
-    tools_path = os.environ.get("SIFLI_SDK_TOOLS_PATH") or os.path.expanduser(
-        "~/.sifli"
-    )
-    base = os.path.join(tools_path, "python_env")
-    if not os.path.isdir(base):
-        return ""
-    for name in sorted(os.listdir(base)):
-        bin_dir = os.path.join(base, name, "bin")
-        if os.path.isfile(os.path.join(bin_dir, "python3")) and os.path.isfile(
-            os.path.join(bin_dir, "scons")
-        ):
-            return bin_dir
-    return ""
-
-
-def _export_prefix(sdk_dir, toolchain_dir, venv_bin):
-    """Shell snippet that activates the SDK environment before running scons."""
-    parts = []
-    if venv_bin:
-        parts.append('PATH="%s:$PATH"' % venv_bin)
+    sdk_dir = env["SIFLI_SDK_DIR"]
+    toolchain_dir = env.get("SIFLI_TOOLCHAIN_DIR") or ""
+    # Chip family used to limit which SDK tools get downloaded (e.g. sf32lb52).
+    target = env["SIFLI_BOARD"].split("-")[0]
+    lines = [
+        "set -e",
+        'export SIFLI_SDK_PATH="%s"' % sdk_dir,
+        # install-python-env refuses to run from inside a virtualenv (e.g. PIO's
+        # own penv), so bootstrap with the underlying system Python when needed.
+        'PYTHON_BIN=$(python3 -c \'import sys,os; print(os.path.join(sys.base_prefix, "bin", "python3"))\')',
+        'VENV=$("$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" get-install-python-env 2>/dev/null || true)'
+        % sdk_dir,
+        'if [ "$VENV" = "Error: Python environment not found" ] || [ ! -x "$VENV/bin/python3" ]; then',
+        '  "$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" install-python-env' % sdk_dir,
+        '  VENV=$("$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" get-install-python-env 2>/dev/null || true)'
+        % sdk_dir,
+        "fi",
+        'export PATH="$VENV/bin:$PATH"',
+        # Install required SDK tools (sftool, gcc for this target) once. The SDK's
+        # `export` step fails unless these are registered, and they are not present
+        # in a freshly auto-installed git package.
+        'MARKER="%s/.sifli_tools_installed"' % sdk_dir,
+        'if [ ! -f "$MARKER" ]; then',
+        '  "$VENV/bin/python" "%s/tools/sifli_sdk_tools.py" install --targets %s' % (sdk_dir, target),
+        '  touch "$MARKER"',
+        "fi",
+    ]
     if toolchain_dir:
-        parts.append('PATH="%s/bin:$PATH"' % toolchain_dir)
-    # Make the SDK's `building` module importable for SConstruct/SConcript.
-    parts.append('PYTHONPATH="%s/tools/build:${PYTHONPATH}"' % sdk_dir)
-    parts.append('. "%s/export.sh"' % sdk_dir)
-    return " ".join(parts)
+        lines.append('export PATH="%s/bin:$PATH"' % toolchain_dir)
+    lines.append('export PYTHONPATH="%s/tools/build:${PYTHONPATH}"' % sdk_dir)
+    lines.append('. "%s/export.sh"' % sdk_dir)
+    lines.append(scons_cmd)
+    return "\n".join(lines)
 
 
 def _run_in_sdk_env(env, command, cwd):
@@ -136,12 +146,9 @@ def _build_action(target, source, env):
     sdk_dir = env["SIFLI_SDK_DIR"]
     board_name = env["SIFLI_BOARD"]
     project_dir = env["PROJECT_DIR"]
-    toolchain_dir = env.get("SIFLI_TOOLCHAIN_DIR")
-    venv_bin = _find_sdk_venv_bin()
     jobs = env.GetOption("num_jobs")
 
-    prefix = _export_prefix(sdk_dir, toolchain_dir, venv_bin)
-    command = '%s && scons --board=%s -j%d' % (prefix, board_name, jobs)
+    command = _sdk_shell(env, "scons --board=%s -j%d" % (board_name, jobs))
     _run_in_sdk_env(env, command, project_dir)
 
     build_dir = os.path.join(project_dir, "build_%s" % board_name)
@@ -171,7 +178,6 @@ def _upload_action(target, source, env):
     sdk_dir = env["SIFLI_SDK_DIR"]
     board_name = env["SIFLI_BOARD"]
     project_dir = env["PROJECT_DIR"]
-    toolchain_dir = env.get("SIFLI_TOOLCHAIN_DIR")
 
     build_dir = os.path.join(project_dir, "build_%s" % board_name)
     sh = os.path.join(build_dir, "uart_download.sh")
@@ -182,8 +188,7 @@ def _upload_action(target, source, env):
         )
         env.Exit(1)
 
-    prefix = _export_prefix(sdk_dir, toolchain_dir, _find_sdk_venv_bin())
-    command = '%s && bash "%s" -p "%s"' % (prefix, sh, port or "")
+    command = _sdk_shell(env, 'bash "%s" -p "%s"' % (sh, port or ""))
     _run_in_sdk_env(env, command, build_dir)
 
 
@@ -191,10 +196,8 @@ def _clean_action(target, source, env):
     sdk_dir = env["SIFLI_SDK_DIR"]
     board_name = env["SIFLI_BOARD"]
     project_dir = env["PROJECT_DIR"]
-    toolchain_dir = env.get("SIFLI_TOOLCHAIN_DIR")
 
-    prefix = _export_prefix(sdk_dir, toolchain_dir, _find_sdk_venv_bin())
-    command = "%s && scons --board=%s -c" % (prefix, board_name)
+    command = _sdk_shell(env, "scons --board=%s -c" % board_name)
     _run_in_sdk_env(env, command, project_dir)
 
 
