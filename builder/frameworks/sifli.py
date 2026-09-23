@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import fnmatch
+import json
 import os
 import re
 import shlex
@@ -145,6 +146,28 @@ def _sdk_shell(env, scons_cmd):
     if build_flags:
         joined = " ".join(str(flag).strip() for flag in build_flags if str(flag).strip())
         lines.append("export SIFLI_BUILD_FLAGS=%s" % shlex.quote(joined))
+
+    # Installed `lib_deps` live in .pio/libdeps/<env>; PlatformIO's Library
+    # Dependency Finder never runs for this platform, so the libraries would be
+    # fetched but never compiled. Export their directories so the project's
+    # SConscript can add the sources and include paths (see the README).
+    libdeps_dir = os.path.join(
+        env.subst("$PROJECT_DIR"), ".pio", "libdeps", env.subst("$PIOENV")
+    )
+    if os.path.isdir(libdeps_dir):
+        dirs = []
+        for name in sorted(os.listdir(libdeps_dir)):
+            path = os.path.join(libdeps_dir, name)
+            if os.path.isdir(path):
+                dirs.append(path)
+            elif name.endswith(".pio-link"):
+                target = _piolib_link_target(path)
+                if target:
+                    dirs.append(target)
+        if dirs:
+            lines.append(
+                "export SIFLI_LIBDEPS_DIRS=%s" % shlex.quote(" ".join(dirs))
+            )
     lines.append('. "%s/export.sh"' % sdk_dir)
     lines.append(scons_cmd)
     return "\n".join(lines)
@@ -241,6 +264,25 @@ _USB_SERIAL_HINTS = (
     "usbserial", "usb serial", "usb-serial", "cp210", "ch34", "ftdi",
     "silicon labs", "sifli", "jtag", "uart",
 )
+
+
+def _piolib_link_target(path):
+    """Resolve the source directory behind a `.pio-link` entry.
+
+    Libraries installed from a local path (`symlink://` / `file://`) are a JSON
+    metadata file instead of a directory, e.g.
+    `{"spec": {"uri": "symlink:///abs/path/to/lib"}}`.
+    """
+    try:
+        with open(path, "r") as f:
+            uri = json.load(f).get("spec", {}).get("uri") or ""
+    except Exception:
+        return None
+    for scheme in ("symlink://", "file://"):
+        if uri.startswith(scheme):
+            target = uri[len(scheme):]
+            return target if os.path.isdir(target) else None
+    return None
 
 
 def _looks_like_usb_serial(entry):

@@ -139,6 +139,48 @@ Note that `build_flags` only carry compiler flags. Kconfig options
 consumed by the SDK's Kconfig to generate `rtconfig.h` - passing them as `-D`
 would bypass that.
 
+### Libraries (`lib_deps`)
+
+PlatformIO installs `lib_deps` into `.pio/libdeps/<env>` even for this platform,
+but its Library Dependency Finder never runs (the SDK's scons drives the build),
+so the libraries would be fetched and then silently ignored.
+
+The bridge: the builder exports the installed library directories as
+`SIFLI_LIBDEPS_DIRS`, and the project's `src/SConscript` adds their sources and
+include paths:
+
+```python
+# src/SConscript
+import os
+import glob as _glob
+from building import *
+
+src = Glob('*.c')
+inc = []
+
+for lib_dir in os.environ.get("SIFLI_LIBDEPS_DIRS", "").split():
+    lib_src = (_glob.glob(os.path.join(lib_dir, "*.c")) +
+               _glob.glob(os.path.join(lib_dir, "src", "*.c")) +
+               _glob.glob(os.path.join(lib_dir, "src", "*", "*.c")))
+    if lib_src:
+        src += File(sorted(lib_src))
+    for sub in ("", "src", "include", "inc"):
+        path = os.path.join(lib_dir, sub)
+        if os.path.isdir(path):
+            inc.append(path)
+
+group = DefineGroup('Applications', src, depend = [''], CPPPATH = inc)
+Return('group')
+```
+
+Both registry libraries (installed as a directory) and local ones
+(`symlink://` / `file://`, installed as a `.pio-link` JSON file) are resolved.
+
+Limitations: there is no dependency scanning, so a whole library is always
+compiled, and `library.json` build settings (`srcDir`, `flags`, per-platform
+filters) are not honoured. For libraries with a custom layout, add them to the
+project and reference them from a `SConscript` instead (see "Adding a library").
+
 ### Serial monitor
 
 `pio run -t monitor` decodes at PlatformIO's own `monitor_speed` option, whose
