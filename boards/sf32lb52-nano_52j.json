@@ -1,0 +1,43 @@
+{
+  "platform": "sifli",
+  "build": {
+    "board": "sf32lb52-nano_52j",
+    "core": "hcpu",
+    "mcu": "sf32lb52x",
+    "cpu": "cortex-m33",
+    "framework": "sifli-sdk",
+    "f_cpu": "120000000L",
+    "flash_size": 16,
+    "ram_size": 512
+  },
+  "upload": {
+    "protocol": "uart",
+    "protocols": [
+      "uart",
+      "jlink",
+      "cmsis-dap"
+    ],
+    "maximum_ram_size": 524288,
+    "maximum_size": 7340032,
+    "maximum_flash_size": 7340032
+  },
+  "debug": {
+    "openocd_target": "sf32lb52x",
+    "default_tools": [
+      "cmsis-dap"
+    ],
+    "tools": {},
+    "jlink_device": "SF32LB52X_NOR"
+  },
+  "frameworks": [
+    "sifli-sdk"
+  ],
+  "name": "sf32lb52-nano_52j (SiFli SF32LB52X)",
+  "vendor": "SiFli",
+  "url": "https://docs.sifli.com/projects/sdk/latest/sf32lb52x/index.html",
+  "sifli": {
+    "sdk_board": "sf32lb52-nano_52j",
+    "sdk_core": "hcpu",
+    "flash_size_source": "board.conf"
+  }
+}

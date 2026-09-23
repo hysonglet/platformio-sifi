@@ -1,0 +1,43 @@
+{
+  "platform": "sifli",
+  "build": {
+    "board": "ec-lb585",
+    "core": "hcpu",
+    "mcu": "sf32lb58x",
+    "cpu": "cortex-m33",
+    "framework": "sifli-sdk",
+    "f_cpu": "240000000L",
+    "flash_size": 4,
+    "ram_size": 1024
+  },
+  "upload": {
+    "protocol": "uart",
+    "protocols": [
+      "uart",
+      "jlink",
+      "cmsis-dap"
+    ],
+    "maximum_ram_size": 1048576,
+    "maximum_size": 4194304,
+    "maximum_flash_size": 4194304
+  },
+  "debug": {
+    "openocd_target": "sf32lb58x",
+    "default_tools": [
+      "cmsis-dap"
+    ],
+    "tools": {},
+    "jlink_device": "SF32LB58X"
+  },
+  "frameworks": [
+    "sifli-sdk"
+  ],
+  "name": "ec-lb585 (SiFli SF32LB58X)",
+  "vendor": "SiFli",
+  "url": "https://docs.sifli.com/projects/sdk/latest/sf32lb58x/index.html",
+  "sifli": {
+    "sdk_board": "ec-lb585",
+    "sdk_core": "hcpu",
+    "flash_size_source": "board.conf"
+  }
+}

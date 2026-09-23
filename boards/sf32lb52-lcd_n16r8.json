@@ -5,34 +5,39 @@
     "core": "hcpu",
     "mcu": "sf32lb52x",
     "cpu": "cortex-m33",
+    "framework": "sifli-sdk",
     "f_cpu": "120000000L",
     "flash_size": 16,
-    "ram_size": 524,
-    "framework": "sifli-sdk"
+    "ram_size": 512
   },
   "upload": {
-    "maximum_size": 7340032,
-    "maximum_flash_size": 7340032,
-    "maximum_ram_size": 536576,
     "protocol": "uart",
     "protocols": [
       "uart",
       "jlink",
       "cmsis-dap"
-    ]
+    ],
+    "maximum_ram_size": 524288,
+    "maximum_size": 7340032,
+    "maximum_flash_size": 7340032
   },
   "debug": {
-    "jlink_device": "SF32LB52X_NOR",
     "openocd_target": "sf32lb52x",
     "default_tools": [
       "cmsis-dap"
     ],
-    "tools": {}
+    "tools": {},
+    "jlink_device": "SF32LB52X_NOR"
   },
   "frameworks": [
     "sifli-sdk"
   ],
-  "name": "SiFli SF32LB52x LCD DevKit (N16R8)",
+  "name": "sf32lb52-lcd_n16r8 (SiFli SF32LB52X)",
   "vendor": "SiFli",
-  "url": "https://docs.sifli.com/projects/sdk/latest/sf32lb52x/index.html"
+  "url": "https://docs.sifli.com/projects/sdk/latest/sf32lb52x/index.html",
+  "sifli": {
+    "sdk_board": "sf32lb52-lcd_n16r8",
+    "sdk_core": "hcpu",
+    "flash_size_source": "name"
+  }
 }

@@ -1,0 +1,43 @@
+{
+  "platform": "sifli",
+  "build": {
+    "board": "sf32lb56-lcd_n16r12n1",
+    "core": "hcpu",
+    "mcu": "sf32lb56x",
+    "cpu": "cortex-m33",
+    "framework": "sifli-sdk",
+    "f_cpu": "240000000L",
+    "flash_size": 16,
+    "ram_size": 800
+  },
+  "upload": {
+    "protocol": "uart",
+    "protocols": [
+      "uart",
+      "jlink",
+      "cmsis-dap"
+    ],
+    "maximum_ram_size": 819200,
+    "maximum_size": 2097152,
+    "maximum_flash_size": 2097152
+  },
+  "debug": {
+    "openocd_target": "sf32lb56x",
+    "default_tools": [
+      "cmsis-dap"
+    ],
+    "tools": {},
+    "jlink_device": "SF32LB56X"
+  },
+  "frameworks": [
+    "sifli-sdk"
+  ],
+  "name": "sf32lb56-lcd_n16r12n1 (SiFli SF32LB56X)",
+  "vendor": "SiFli",
+  "url": "https://docs.sifli.com/projects/sdk/latest/sf32lb56x/index.html",
+  "sifli": {
+    "sdk_board": "sf32lb56-lcd_n16r12n1",
+    "sdk_core": "hcpu",
+    "flash_size_source": "name"
+  }
+}

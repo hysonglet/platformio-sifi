@@ -1,0 +1,42 @@
+{
+  "platform": "sifli",
+  "build": {
+    "board": "eh-ss6500",
+    "core": "hcpu",
+    "mcu": "sf32lb52x",
+    "cpu": "cortex-m33",
+    "framework": "sifli-sdk",
+    "f_cpu": "120000000L",
+    "ram_size": 512
+  },
+  "upload": {
+    "protocol": "uart",
+    "protocols": [
+      "uart",
+      "jlink",
+      "cmsis-dap"
+    ],
+    "maximum_ram_size": 524288,
+    "maximum_size": 2097152,
+    "maximum_flash_size": 2097152
+  },
+  "debug": {
+    "openocd_target": "sf32lb52x",
+    "default_tools": [
+      "cmsis-dap"
+    ],
+    "tools": {},
+    "jlink_device": "SF32LB52X_NOR"
+  },
+  "frameworks": [
+    "sifli-sdk"
+  ],
+  "name": "eh-ss6500 (SiFli SF32LB52X)",
+  "vendor": "SiFli",
+  "url": "https://docs.sifli.com/projects/sdk/latest/sf32lb52x/index.html",
+  "sifli": {
+    "sdk_board": "eh-ss6500",
+    "sdk_core": "hcpu",
+    "flash_size_source": "unknown"
+  }
+}

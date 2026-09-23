@@ -1,0 +1,42 @@
+{
+  "platform": "sifli",
+  "build": {
+    "board": "ec-lb567",
+    "core": "hcpu",
+    "mcu": "sf32lb56x",
+    "cpu": "cortex-m33",
+    "framework": "sifli-sdk",
+    "f_cpu": "240000000L",
+    "ram_size": 800
+  },
+  "upload": {
+    "protocol": "uart",
+    "protocols": [
+      "uart",
+      "jlink",
+      "cmsis-dap"
+    ],
+    "maximum_ram_size": 819200,
+    "maximum_size": 2097152,
+    "maximum_flash_size": 2097152
+  },
+  "debug": {
+    "openocd_target": "sf32lb56x",
+    "default_tools": [
+      "cmsis-dap"
+    ],
+    "tools": {},
+    "jlink_device": "SF32LB56X_NAND"
+  },
+  "frameworks": [
+    "sifli-sdk"
+  ],
+  "name": "ec-lb567 (SiFli SF32LB56X)",
+  "vendor": "SiFli",
+  "url": "https://docs.sifli.com/projects/sdk/latest/sf32lb56x/index.html",
+  "sifli": {
+    "sdk_board": "ec-lb567",
+    "sdk_core": "hcpu",
+    "flash_size_source": "unknown"
+  }
+}
