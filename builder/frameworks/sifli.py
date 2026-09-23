@@ -112,26 +112,68 @@ def _sdk_shell(env, scons_cmd):
     lines = [
         "set -e",
         'export SIFLI_SDK_PATH="%s"' % sdk_dir,
+    ]
+
+    if os.path.exists(os.path.join(sdk_dir, "tools", "sdk_env.py")):
+        # SDK v2.5+: the Python environment and SDK tools are managed by `uv`
+        # (tools/sdk_env.py). The old `install-python-env` command was removed, so
+        # we install the tools once via uv and then activate the environment with
+        # export.sh (which prepends the uv Python 3.13 + tools to PATH). export.sh
+        # itself needs `uv` on PATH.
+        lines.append('UV_BIN=$(command -v uv || true)')
+        lines.append('if [ -z "$UV_BIN" ]; then')
+        lines.append(
+            '  for d in "$HOME/.local/bin" "$HOME/.cargo/bin" '
+            "/opt/homebrew/bin /usr/local/bin; do"
+        )
+        lines.append('    if [ -x "$d/uv" ]; then UV_BIN="$d/uv"; break; fi')
+        lines.append("  done")
+        lines.append("fi")
+        lines.append('export PATH="$(dirname "$UV_BIN" 2>/dev/null):$PATH"')
+        lines.append('MARKER="%s/.sifli_sdk_env_installed"' % sdk_dir)
+        lines.append('if [ ! -f "$MARKER" ]; then')
+        lines.append(
+            '  uv run --with rich --with tomli_w --python 3.13 --no-project '
+            '"%s/tools/sdk_env.py" install' % sdk_dir
+        )
+        lines.append('  touch "$MARKER"')
+        lines.append("fi")
+    else:
+        # SDK <= v2.4: a one-time Python virtualenv is required
+        # (`tools/sifli_sdk_tools.py install-python-env`). When PlatformIO
+        # auto-installs the SDK from a git package this step has never run.
         # install-python-env refuses to run from inside a virtualenv (e.g. PIO's
         # own penv), so bootstrap with the underlying system Python when needed.
-        'PYTHON_BIN=$(python3 -c \'import sys,os; print(os.path.join(sys.base_prefix, "bin", "python3"))\')',
-        'VENV=$("$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" get-install-python-env 2>/dev/null || true)'
-        % sdk_dir,
-        'if [ "$VENV" = "Error: Python environment not found" ] || [ ! -x "$VENV/bin/python3" ]; then',
-        '  "$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" install-python-env' % sdk_dir,
-        '  VENV=$("$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" get-install-python-env 2>/dev/null || true)'
-        % sdk_dir,
-        "fi",
-        'export PATH="$VENV/bin:$PATH"',
+        lines.append(
+            'PYTHON_BIN=$(python3 -c \'import sys,os; print(os.path.join(sys.base_prefix, "bin", "python3"))\')'
+        )
+        lines.append(
+            'VENV=$("$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" get-install-python-env 2>/dev/null || true)'
+            % sdk_dir
+        )
+        lines.append(
+            'if [ "$VENV" = "Error: Python environment not found" ] || [ ! -x "$VENV/bin/python3" ]; then'
+        )
+        lines.append(
+            '  "$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" install-python-env' % sdk_dir
+        )
+        lines.append(
+            '  VENV=$("$PYTHON_BIN" "%s/tools/sifli_sdk_tools.py" get-install-python-env 2>/dev/null || true)'
+            % sdk_dir
+        )
+        lines.append("fi")
+        lines.append('export PATH="$VENV/bin:$PATH"')
         # Install required SDK tools (sftool, gcc for this target) once. The SDK's
         # `export` step fails unless these are registered, and they are not present
         # in a freshly auto-installed git package.
-        'MARKER="%s/.sifli_tools_installed"' % sdk_dir,
-        'if [ ! -f "$MARKER" ]; then',
-        '  "$VENV/bin/python" "%s/tools/sifli_sdk_tools.py" install --targets %s' % (sdk_dir, target),
-        '  touch "$MARKER"',
-        "fi",
-    ]
+        lines.append('MARKER="%s/.sifli_tools_installed"' % sdk_dir)
+        lines.append('if [ ! -f "$MARKER" ]; then')
+        lines.append(
+            '  "$VENV/bin/python" "%s/tools/sifli_sdk_tools.py" install --targets %s'
+            % (sdk_dir, target)
+        )
+        lines.append('  touch "$MARKER"')
+        lines.append("fi")
     if toolchain_dir:
         lines.append('export PATH="%s/bin:$PATH"' % toolchain_dir)
     lines.append('export PYTHONPATH="%s/tools/build:${PYTHONPATH}"' % sdk_dir)
