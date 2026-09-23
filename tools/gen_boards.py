@@ -54,6 +54,14 @@ FLASH_SIZE_OVERRIDES = {
     "sf32lb52-lchspi-ulp": 16,
 }
 
+# NOTE: a board manifest can carry a `monitor: {speed: ...}` block, and the
+# SiFli console default is 1000000 baud (the SDK's RT-Thread Kconfig default for
+# RT_SERIAL_DEFAULT_BAUDRATE). PlatformIO 6.x does NOT use it though: the
+# monitor baud always comes from the project's `monitor_speed` option (default
+# 9600). The builder therefore prints a note after each build when the value
+# does not match the firmware's console baud, instead of writing inert metadata
+# into all board manifests.
+
 
 
 def resolve_flash_size(board, board_dir, core):

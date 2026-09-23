@@ -40,8 +40,9 @@ platform = /abs/path/to/sifli-platform
 board    = sf32lb52-lcd_n16r8
 framework = sifli-sdk
 
-; Tell the builder where the SDK lives (either option works):
-sifli_sdk_dir = /abs/path/to/SiFli-SDK
+; Tell the builder where the SDK lives (any of these works):
+custom_sifli_sdk_dir = /abs/path/to/SiFli-SDK
+; sifli_sdk_dir = ...     ; legacy name, still honoured (PlatformIO warns about it)
 ; or export SIFLI_SDK=/abs/path/to/SiFli-SDK in your shell
 ```
 
@@ -111,6 +112,24 @@ If `uart_download.sh` is missing (for example the build directory was cleaned
 without rebuilding), the platform falls back to calling `sftool -f <config>`
 directly, using a copy of `sftool_param.json` with the port injected.
 
+### Serial monitor
+
+`pio run -t monitor` decodes at PlatformIO's own `monitor_speed` option, whose
+default is 9600. The SiFli console baud rate is a *project* setting instead: the
+SDK's RT-Thread default is **1000000** (`RT_SERIAL_DEFAULT_BAUDRATE`), and a
+project can override it in `proj.conf`, e.g.
+`CONFIG_RT_SERIAL_DEFAULT_BAUDRATE=115200`. Set the monitor to the same value,
+otherwise the log is unreadable:
+
+```ini
+monitor_speed = 115200        ; must match CONFIG_RT_SERIAL_DEFAULT_BAUDRATE
+```
+
+After every build the builder prints a note when the two do not match. (A board
+manifest cannot supply this default: PlatformIO resolves `monitor_speed`
+exclusively from the project configuration, so board manifests stay free of an
+inert `monitor.speed` block.)
+
 ## Boards
 
 All board targets the SDK can build for are already provided:
@@ -138,7 +157,8 @@ appended automatically).
 * **Debug** (`cmsis-dap` / `jlink`) targets are declared but require a
   SiFli-aware OpenOCD/ J-Link setup; they are best-effort and may need extra
   configuration (`debug.openocd_target`, `debug.jlink_device`).
-* The `sifli_sdk_dir` option emits a harmless "unknown configuration option"
-  warning from PlatformIO; set the `SIFLI_SDK` environment variable instead if
-  you want a clean log.
+* Use `custom_sifli_sdk_dir` (or the `SIFLI_SDK` environment variable) for a clean
+  log: PlatformIO only accepts custom `[env:*]` options starting with `custom_` or
+  `board_` and warns about every other name. The unprefixed `sifli_sdk_dir` is
+  still honoured for backwards compatibility.
 * This package lives entirely outside the SDK, so the SDK stays pristine.

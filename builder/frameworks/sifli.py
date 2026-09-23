@@ -14,6 +14,7 @@
 
 import fnmatch
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -46,8 +47,15 @@ def _find_first(basedir, patterns):
 
 
 def _resolve_sdk(env):
-    # 1. project option (platformio.ini: `sifli_sdk_dir = ...`)
-    sdk = env.GetProjectOption("sifli_sdk_dir", "")
+    # 1. project option (platformio.ini: `custom_sifli_sdk_dir = ...`).
+    #    PlatformIO only accepts custom options in [env:*] sections when they
+    #    start with `custom_` or `board_` (see platformio/project/config.py,
+    #    CUSTOM_OPTION_PREFIXES); anything else triggers an "Ignore unknown
+    #    configuration option" warning. The unprefixed name is still honoured for
+    #    backwards compatibility.
+    sdk = env.GetProjectOption("custom_sifli_sdk_dir", "")
+    if not sdk:
+        sdk = env.GetProjectOption("sifli_sdk_dir", "")
     # 2. environment variable
     if not sdk:
         sdk = os.environ.get("SIFLI_SDK", "")
@@ -142,6 +150,46 @@ def _run_in_sdk_env(env, command, cwd):
 #
 
 
+def _note_console_baud(env, build_dir):
+    """Point out a `monitor_speed` that does not match the firmware's console baud.
+
+    The console baud rate is a project setting (`CONFIG_RT_SERIAL_DEFAULT_BAUDRATE`;
+    the SDK's RT-Thread default is 1000000), while `pio run -t monitor` decodes at
+    PlatformIO's `monitor_speed` option (default 9600). A mismatch only produces
+    garbled output, so mention it once after the build - that is also why the
+    board manifests carry no `monitor.speed`: PlatformIO 6.x ignores it.
+    """
+    rtconfig = os.path.join(build_dir, "rtconfig.h")
+    if not os.path.isfile(rtconfig):
+        return
+    with open(rtconfig, "r", errors="ignore") as f:
+        text = f.read()
+    match = re.search(r"#define\s+RT_SERIAL_DEFAULT_BAUDRATE\s+(\d+)", text)
+    if not match:
+        return
+
+    baud = match.group(1)
+    # Read the raw value: `monitor_speed` is a click.INT option, so asking
+    # GetProjectOption for a string default would raise. 9600 is PlatformIO's own
+    # default, used when the option is absent.
+    try:
+        raw = env.GetProjectConfig().getraw(
+            "env:" + env.subst("$PIOENV"), "monitor_speed", "9600"
+        )
+    except Exception:
+        raw = "9600"
+    monitor = str(raw).strip()
+    if monitor == baud:
+        return
+
+    sys.stdout.write(
+        "[siFli] console baud is %s but `monitor_speed` is %s; add "
+        "`monitor_speed = %s`\n"
+        "        to platformio.ini so `pio run -t monitor` decodes the log correctly.\n"
+        % (baud, monitor, baud)
+    )
+
+
 def _build_action(target, source, env):
     sdk_dir = env["SIFLI_SDK_DIR"]
     board_name = env["SIFLI_BOARD"]
@@ -169,6 +217,11 @@ def _build_action(target, source, env):
     else:
         objcopy = env.get("OBJCOPY") or "arm-none-eabi-objcopy"
         subprocess.run([objcopy, "-Obinary", firm_elf, firm_bin], check=False)
+
+    try:
+        _note_console_baud(env, build_dir)
+    except Exception as exc:            # a hint must never break the build
+        sys.stdout.write("[siFli] console baud check skipped: %s\n" % exc)
 
 
 # Strings that hint at a USB serial adapter usable for the UART download.
