@@ -1,0 +1,16 @@
+#APP specific configuration.
+config CUSTOM_MEM_MAP
+    bool
+	select custom_mem_map
+	default y if !SOC_SIMULATOR
+
+# LVGL log verbosity.
+# lv_conf_internal.h uses `CONFIG_LV_LOG_LEVEL` as `LV_LOG_LEVEL` whenever that
+# symbol is defined. The SDK's LVGL Kconfig exposes its equivalent as a
+# non-prompt `int` whose defaults reference `LV_LOG_LEVEL_INFO` symbols that do
+# not exist (the choice below declares them as `CONFIG_LV_LOG_LEVEL_INFO`), so
+# it cannot be selected from proj.conf. Declare it here instead.
+# 0=trace 1=info 2=warn 3=error 4=user 5=none
+config CONFIG_LV_LOG_LEVEL
+    int
+    default 1

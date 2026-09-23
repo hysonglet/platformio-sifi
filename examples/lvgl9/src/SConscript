@@ -1,0 +1,29 @@
+import os
+import glob as _glob
+from building import *
+
+# Add source code
+src = Glob('*.c')
+inc = []
+
+# Sources of PlatformIO `lib_deps`. The platform exports the installed
+# directories as SIFLI_LIBDEPS_DIRS because PlatformIO's Library Dependency
+# Finder never runs for this platform - without this the libraries are fetched
+# into .pio/libdeps but never compiled or linked.
+for lib_dir in os.environ.get("SIFLI_LIBDEPS_DIRS", "").split():
+    lib_src = (_glob.glob(os.path.join(lib_dir, "*.c")) +
+               _glob.glob(os.path.join(lib_dir, "src", "*.c")) +
+               _glob.glob(os.path.join(lib_dir, "src", "*", "*.c")))
+    if lib_src:
+        src += File(sorted(lib_src))
+        print("lib_deps: adding %s (%d source files)" %
+              (os.path.basename(lib_dir), len(lib_src)))
+
+    for sub in ("", "src", "include", "inc"):
+        path = os.path.join(lib_dir, sub)
+        if os.path.isdir(path):
+            inc.append(path)
+
+group = DefineGroup('Applications', src, depend = [''], CPPPATH = inc)
+
+Return('group')
