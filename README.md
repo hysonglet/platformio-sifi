@@ -112,6 +112,33 @@ If `uart_download.sh` is missing (for example the build directory was cleaned
 without rebuilding), the platform falls back to calling `sftool -f <config>`
 directly, using a copy of `sftool_param.json` with the port injected.
 
+### Build flags
+
+`build_flags` are forwarded to the SDK build: the platform exports them as
+`SIFLI_BUILD_FLAGS`, and the project's `SConstruct` appends them to the build
+environment.
+
+```ini
+build_flags = -DMY_MACRO=1        ; e.g. -DLOG_LEVEL=3
+```
+
+```python
+# SConstruct - needed once per project, right after `env = GetCurrentEnv()`
+import shlex
+extra_build_flags = shlex.split(os.environ.get("SIFLI_BUILD_FLAGS", ""))
+if extra_build_flags:
+    env.AppendUnique(CCFLAGS=extra_build_flags)
+```
+
+They are appended to `CCFLAGS` rather than `CPPDEFINES` because some SDK source
+groups declare their own `CPPDEFINES`, which would override the global ones;
+`CCFLAGS` is prepended to every group's flags.
+
+Note that `build_flags` only carry compiler flags. Kconfig options
+(`CONFIG_*=...`) still belong in `proj.conf` (or `board.conf`), because they are
+consumed by the SDK's Kconfig to generate `rtconfig.h` - passing them as `-D`
+would bypass that.
+
 ### Serial monitor
 
 `pio run -t monitor` decodes at PlatformIO's own `monitor_speed` option, whose

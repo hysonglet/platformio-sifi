@@ -15,6 +15,7 @@
 import fnmatch
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -133,6 +134,17 @@ def _sdk_shell(env, scons_cmd):
     if toolchain_dir:
         lines.append('export PATH="%s/bin:$PATH"' % toolchain_dir)
     lines.append('export PYTHONPATH="%s/tools/build:${PYTHONPATH}"' % sdk_dir)
+    # Pass PlatformIO's `build_flags` (e.g. `-DFOO=1`) to the SDK build. This
+    # platform drives the SDK's own scons, which knows nothing about PlatformIO
+    # options, so the flags travel as an environment variable and the project's
+    # SConstruct applies them to the build environment (see the README).
+    build_flags = env.GetProjectOption("build_flags", []) or env.get("BUILD_FLAGS") or []
+    if isinstance(build_flags, str):
+        # `build_flags` is a multiple option; multi-line values arrive as one string
+        build_flags = [f for f in build_flags.splitlines() if f.strip()]
+    if build_flags:
+        joined = " ".join(str(flag).strip() for flag in build_flags if str(flag).strip())
+        lines.append("export SIFLI_BUILD_FLAGS=%s" % shlex.quote(joined))
     lines.append('. "%s/export.sh"' % sdk_dir)
     lines.append(scons_cmd)
     return "\n".join(lines)
